@@ -232,7 +232,7 @@ sub notifyUsers {
     $email .= "Subject: $subject\n\n";
     $email .= "$body\n";
     #&Foswiki::Func::writeDebug( "Sending mail to $tmp ..." );
-    my $error = &Foswiki::Net::sendEmail( $email );
+    my $error = &Foswiki::Func::sendEmail( $email );
     if ( $error ) {
       &Foswiki::Func::writeDebug( "ERROR WHILE SENDING MAIL - $error" );
     }
@@ -241,7 +241,7 @@ sub notifyUsers {
 
 sub getUserEmail {
   my $who = shift;
-  my @emails = &Foswiki::getEmailOfUser( $who );
+  my @emails = $Foswiki::Plugins::SESSION->{users}->getEmails( $who );
   return "" if ( $#emails < 0 );
   #&Foswiki::Func::writeDebug( "USER: $user, EMAIL $emails[0]" );
   return $emails[0];
