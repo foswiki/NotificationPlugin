@@ -120,7 +120,7 @@ sub main
     my $count = 0;
     foreach my $line ( split( /\n/, $allChanges ) ) {
       my ( $web, $topicName, $userName, $changeTime, $revision ) = split( /\t/, $line );
- 	    my $wikiuser = &Foswiki::userToWikiName( $userName, 1 );
+ 	    my $wikiuser = &Foswiki::Func::userToWikiName( $userName, 1 );
       #print "LINE = $line\n";
       #print "WEBS = $notify{$user}{'web'}\n";
       #print "TOPICS = $notify{$user}{'topic'}\n";

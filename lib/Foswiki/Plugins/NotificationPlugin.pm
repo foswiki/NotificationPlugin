@@ -123,7 +123,7 @@ sub beforeSaveHandler
   # This handler is called by Foswiki::Store::saveTopic just before the save action.
   # New hook in Foswiki::Plugins $VERSION = '1.010'
 
-  my $wikiUser = &Foswiki::userToWikiName( $user, 1 );
+  my $wikiUser = &Foswiki::Func::userToWikiName( $user, 1 );
   my @notifyUsers = ();
   push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 0 ) );
   push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 1 ) );
