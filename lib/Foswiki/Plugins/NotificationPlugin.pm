@@ -241,7 +241,7 @@ sub notifyUsers {
 
 sub getUserEmail {
   my $who = shift;
-  my @emails = $Foswiki::Plugins::SESSION->{users}->getEmails( $who );
+  my @emails = $Foswiki::Func::wikinameToEmails( $who );
   return "" if ( $#emails < 0 );
   #&Foswiki::Func::writeDebug( "USER: $user, EMAIL $emails[0]" );
   return $emails[0];
