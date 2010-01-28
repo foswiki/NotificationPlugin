@@ -2,6 +2,7 @@ bin/changenotify NEW
 bin/mailnotify-NP NEW
 data/Main/NotificationPluginListTemplate.txt NEW
 data/System/NotificationPlugin.txt NEW
+lib/Foswiki/Plugins/NotificationPlugin/Config.spec NEW
 lib/Foswiki/Plugins/NotificationPlugin.pm NEW
 templates/changes-multi-text.tmpl NEW
 templates/changes-single-html.tmpl NEW
