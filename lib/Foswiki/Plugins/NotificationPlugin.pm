@@ -91,8 +91,8 @@ sub initPlugin
       "(Regex) notifications"
     );
     
-    $debug = Foswiki::Func::getPreferencesFlag( "\U$pluginName\E_DEBUG" ) || 0;
-    $sender = Foswiki::Func::getPreferencesValue( "\U$pluginName\E_SENDER" ) || "Foswiki NotificationPlugin";
+    $debug = $Foswiki::cfg{Plugins}{$pluginName}{Debug} || 0;
+    $sender = $Foswiki::cfg{Plugins}{$pluginName}{SENDER} || "Foswiki NotificationPlugin";
     
     # Plugin correctly initialized
     Foswiki::Func::writeDebug( "- Foswiki::Plugins::${pluginName}::initPlugin( $web.$topic ) is OK" ) if $debug;
@@ -243,7 +243,7 @@ sub getUserEmail {
   my $who = shift;
   my @emails = $Foswiki::Func::wikinameToEmails( $who );
   return "" if ( $#emails < 0 );
-  #&Foswiki::Func::writeDebug( "USER: $user, EMAIL $emails[0]" );
+  Foswiki::Func::writeDebug( "- Foswiki::Plugins::${pluginName} USER: $user, EMAIL $emails[0]" ); if $debug;
   return $emails[0];
 }
 
