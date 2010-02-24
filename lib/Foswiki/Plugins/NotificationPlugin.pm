@@ -163,6 +163,7 @@ sub getUsersToNotify {
       $line =~ s/\s+$//;
       #&Foswiki::Func::writeDebug( "LINE = $line" );
       #&Foswiki::Func::writeDebug( "TEST = $test" );
+      next unless $line;
       $test = "" if ( ( $test ne "" ) && ( $line !~ /^\s*\*/ ) );
       #&Foswiki::Func::writeDebug( "TEST = $test" );
       if ( $test eq "Topic" ) {
@@ -243,7 +244,7 @@ sub getUserEmail {
   my $who = shift;
   my @emails = &Foswiki::Func::wikinameToEmails( $who );
   return "" if ( $#emails < 0 );
-  Foswiki::Func::writeDebug( "- Foswiki::Plugins::${pluginName} USER: $user, EMAIL $emails[0]" ) if $debug;
+  Foswiki::Func::writeDebug( "- Foswiki::Plugins::${pluginName} USER: $who, EMAIL $emails[0]" ) if $debug;
   return $emails[0];
 }
 
