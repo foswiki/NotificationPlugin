@@ -79,10 +79,10 @@ __Note:__ You do not need to install anything on the browser to use this plugin.
 	  | ==data/System/%TOPIC%.txt== | Plugin topic |
 	  | ==data/System/NotificationPluginListTemplate.txt== | Template for <nop>NotifyList topics |
 	  | ==lib/Foswiki/Plugins/%TOPIC%.pm== | Plugin Perl module |
-	  | ==bin/mailnotify-NP== | Perl script for sending regular notifications (could be put in cron)<br>You can rename it if you need old notifications |
-	  | ==bin/changenotify== | Perl script for changing notifications using NTF variable |
 	  | ==templates/htmlchanges.tmpl== | Template for generating HTML mails with notifications |
 	  | ==templates/view.NP.tmpl== | Template with example of using NTF variable |
+	  | ==tools/mailnotify-NP== | Perl script for sending regular notifications (could be put in cron)<br>You can rename it if you need old notifications |
+	  | ==tools/changenotify== | Perl script for changing notifications using NTF variable |
 	* (Dakar) Visit =configure= in your Foswiki installation, and enable the plugin in the {Plugins} section.
 
 ---++ Plugin History

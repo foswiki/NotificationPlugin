@@ -1,5 +1,3 @@
-bin/changenotify NEW
-bin/mailnotify-NP NEW
 data/Main/NotificationPluginListTemplate.txt NEW
 data/System/NotificationPlugin.txt NEW
 lib/Foswiki/Plugins/NotificationPlugin/Config.spec NEW
@@ -18,3 +16,5 @@ templates/mailnotify-single-text.tmpl NEW
 templates/mailnotify-srg-html.tmpl NEW
 templates/mailnotify-srg-text.tmpl NEW
 templates/view.NP.tmpl NEW
+tools/changenotify NEW
+tools/mailnotify-NP NEW
