@@ -1,7 +1,11 @@
-%META:TOPICINFO{author="ProjectContributor" date="1084271820" format="1.0" version="1.9"}%
 ---+!! <nop>%TOPIC%
+<!--
+   * Set SHORTDESCRIPTION = %$SHORTDESCRIPTION%
+-->
 
-This plugin allows you to send fine grained notifications of topics you are interested in. It allows you to specify to kinds of notifications - immediate and regular. Immediate notifications are send every time somebody changed the requested topic, regular notifications are the same as default Foswiki notifications, but allows better settings.
+%$SHORTDESCRIPTION%
+
+Allows you to specify to kinds of notifications - immediate and regular. Immediate notifications are sent every time somebody changes the requested topic, regular notifications are the same as default Foswiki notifications, but allows better settings.
 
 %TOC%
 
@@ -52,40 +56,24 @@ If you want to set immediate notifications on web _Foswiki_ add this line under 
 If you want to set immediate notifications on all topics in web Test and topics which contains string 'Design' in the name add following line in "Regex immediate notifications":
 	* Test\..*Design
 
----++ <nop>%TOPIC% Global Settings
-
-Plugin settings are stored as preferences variables. To reference a plugin setting write ==%<nop>&lt;plugin&gt;_&lt;setting&gt;%==, i.e. ==%<nop>INTERWIKIPLUGIN_SHORTDESCRIPTION%==
-
-	* One line description, is shown in the %SYSTEMWEB%.TextFormattingRules topic:
-		* Set SHORTDESCRIPTION = This plugin allows you to send fine grained notifications of topics you are interested in
-
-	* Debug plugin: (See output in =data/debug.txt=)
-		* Set DEBUG = 0
-
 ---++ TODO
 
 	* Add child notifications (setting an topic and get notifications of all its children)
 
 ---++ Plugin Installation Instructions
+%$INSTALL_INSTRUCTIONS%
+Some unusual files are installed that are worthy of mention:
+| ==templates/htmlchanges.tmpl== | Template for generating HTML mails with notifications |
+| ==templates/view.NP.tmpl== | Template with example of using NTF variable |
+| ==tools/mailnotify-NP== | Perl script for sending regular notifications (could be put in cron)<br>You can rename it if you need old notifications |
+| ==tools/changenotify== | Perl script for changing notifications using NTF variable |
 
-__Note:__ You do not need to install anything on the browser to use this plugin. The following instructions are for the administrator who installs the plugin on the server where Foswiki is running. 
+---++ Info
+Sponsored by [[http://www.systinet.com][Systinet]] ;-)
 
-	* Download the ZIP file from the Plugin web (see below)
-	* Unzip ==%TOPIC%.zip== in your twiki installation directory. Content:
-	  | *File:* | *Description:* |
-	  | ==data/System/%TOPIC%.txt== | Plugin topic |
-	  | ==data/System/NotificationPluginListTemplate.txt== | Template for <nop>NotifyList topics |
-	  | ==lib/Foswiki/Plugins/%TOPIC%.pm== | Plugin Perl module |
-	  | ==templates/htmlchanges.tmpl== | Template for generating HTML mails with notifications |
-	  | ==templates/view.NP.tmpl== | Template with example of using NTF variable |
-	  | ==tools/mailnotify-NP== | Perl script for sending regular notifications (could be put in cron)<br>You can rename it if you need old notifications |
-	  | ==tools/changenotify== | Perl script for changing notifications using NTF variable |
-	* (Dakar) Visit =configure= in your Foswiki installation, and enable the plugin in the {Plugins} section.
-
----++ Plugin Info
-
-|  Plugin Author: | Foswiki:Main/RichardBaar |
-|  Plugin Version: | 12 Sep 2010 (V1.16) |
+|  Author: | Foswiki:Main/RichardBaar |
+|  Version: | %$VERSION% |
+|  Release: | %$RELEASE% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
 |  12 Sep 2010 (1.16) | Tasks:Item8428 - Lose SENDER |
 |  21 May 2007: | Bugs:Item3969 - 8bit email fix (Foswiki:Main.WillNorris) |
@@ -98,12 +86,8 @@ __Note:__ You do not need to install anything on the browser to use this plugin.
 |  24 Feb 2004: | Version 1.03 - added SENDER variable, bug-fixes |
 |  26 Apr 2004: | Version 1.1 - new functions; added support for fast setting notifications |
 |  14 Jan 2004: | Initial version |
-|  Plugin Home: | http://foswiki.org/Extensions/%TOPIC% |
+|  Home: | http://foswiki.org/Extensions/%TOPIC% |
 |  Feedback: | http://foswiki.org/Extensions/%TOPIC%Dev |
-
-__Related Topics:__ %SYSTEMWEB%.DefaultPreferences, %USERSWEB%.SitePreferences, [[%SYSTEMWEB%.Plugins][Plugins]]
-
-Sponsored by [[http://www.systinet.com][Systinet]] ;-)
 
 -- Foswiki:Main/RichardBaar - 26 Apr 2004
 
