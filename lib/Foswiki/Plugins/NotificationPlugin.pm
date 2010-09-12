@@ -92,7 +92,9 @@ sub initPlugin
     );
     
     $debug = $Foswiki::cfg{Plugins}{$pluginName}{Debug} || 0;
-    $sender = $Foswiki::cfg{Plugins}{$pluginName}{SENDER} || "Foswiki NotificationPlugin";
+    # KISS:
+    # $sender = $Foswiki::cfg{Plugins}{$pluginName}{SENDER} || "Foswiki NotificationPlugin";
+    $sender = $Foswiki::cfg{WebMasterEmail};
     
     # Plugin correctly initialized
     Foswiki::Func::writeDebug( "- Foswiki::Plugins::${pluginName}::initPlugin( $web.$topic ) is OK" ) if $debug;
