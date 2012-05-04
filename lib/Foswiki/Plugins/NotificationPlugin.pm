@@ -90,8 +90,7 @@ sub beforeSaveHandler {
 sub getUsers {
     my @result;
 
-    my @topics =
-      Foswiki::Func::getTopicList(Foswiki::Func::getMainWebname());
+    my @topics = Foswiki::Func::getTopicList( Foswiki::Func::getMainWebname() );
 
     foreach my $name (@topics) {
         next unless $name =~ /^(.*)NotifyList$/;
@@ -230,8 +229,7 @@ sub addItemToNotifyList {
     ( $meta, $text ) = checkUserNotifyList($who) if ( $text eq "" );
     return ( $meta, $text )
       if ( isItemInSection( $who, $what, $section, $text ) );
-    my @items =
-      Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
+    my @items = Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
         $Foswiki::wikiName, $section, $text );
     my $newText = "";
     my $tmp     = 0;
@@ -267,8 +265,7 @@ sub removeItemFromNotifyList {
     ( $meta, $text ) = checkUserNotifyList($who) if ( $text eq "" );
     return ( $meta, $text )
       if ( !isItemInSection( $who, $what, $section, $text ) );
-    my @items =
-      Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
+    my @items = Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
         $Foswiki::wikiName, $section, $text );
     my $newText = "";
     my $tmp     = 0;
