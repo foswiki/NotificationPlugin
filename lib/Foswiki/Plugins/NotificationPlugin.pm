@@ -76,7 +76,7 @@ sub beforeSaveHandler {
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 1 ) );
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 2 ) );
 
-    Foswiki::Func::writeDebug( "COUNT = $#notifyUsers" );
+    Foswiki::Func::writeDebug("COUNT = $#notifyUsers");
     my $subject = "Topic $_[2].$_[1] has been changed by $wikiUser.";
     my $body =
         "Topic "
@@ -90,8 +90,7 @@ sub beforeSaveHandler {
 sub getUsers {
     my @result;
 
-    my @topics =
-      Foswiki::Func::getTopicList($Foswiki::cfg{UsersWebName});
+    my @topics = Foswiki::Func::getTopicList( $Foswiki::cfg{UsersWebName} );
 
     foreach my $name (@topics) {
         next unless $name =~ /^(.*)NotifyList$/;
@@ -112,7 +111,7 @@ sub getUsersToNotify {
     foreach my $tmp (@users) {
 
         #Foswiki::Func::writeDebug( "TMP = $tmp" );
-        my $text = Foswiki::Func::readTopic($Foswiki::cfg{UsersWebName},
+        my $text = Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName},
             "$tmp" . "NotifyList" );
         my $test = "";
         foreach my $line ( split( /\n/, $text ) ) {
@@ -190,12 +189,12 @@ sub getNotificationsOfUser {
 sub notifyUsers {
     my ( $notifyUsers, $subject, $body ) = @_;
 
-    Foswiki::Func::writeDebug( "NT = $notifyUsers" );
+    Foswiki::Func::writeDebug("NT = $notifyUsers");
     foreach my $tmp ( @{$notifyUsers} ) {
         Foswiki::Func::writeDebug("MAIL SENT TO $tmp ...");
 
-        my $to = getUserEmail($tmp);
-my $email = <<"HERE";
+        my $to    = getUserEmail($tmp);
+        my $email = <<"HERE";
 From: $sender
 To: $to
 Subject: $subject
@@ -213,7 +212,7 @@ $body
 --------------2D594AE113AD25493C2C7246--
 HERE
 
-        Foswiki::Func::writeDebug( "Sending mail to $tmp ..." );
+        Foswiki::Func::writeDebug("Sending mail to $tmp ...");
         my $error = Foswiki::Func::sendEmail($email);
         if ($error) {
             Foswiki::Func::writeDebug("ERROR WHILE SENDING MAIL - $error");
@@ -244,7 +243,8 @@ sub addItemToNotifyList {
       if ( isItemInSection( $who, $what, $section, $text ) );
     my @items =
       Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
-        Foswiki::Func::getWikiName(), $section, $text );
+        Foswiki::Func::getWikiName(),
+        $section, $text );
     my $newText = "";
     my $tmp     = 0;
     foreach $line ( split( /\n/, $text ) ) {
@@ -281,7 +281,8 @@ sub removeItemFromNotifyList {
       if ( !isItemInSection( $who, $what, $section, $text ) );
     my @items =
       Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
-        Foswiki::Func::getWikiName(), $section, $text );
+        Foswiki::Func::getWikiName(),
+        $section, $text );
     my $newText = "";
     my $tmp     = 0;
     foreach $line ( split( /\n/, $text ) ) {
@@ -310,16 +311,24 @@ sub checkUserNotifyList {
     my $tmpMeta;
 
     #Foswiki::Func::writeDebug( "NTF:checkUserNotifyList: WHO = $who" );
-    if ( !Foswiki::Func::topicExists( $Foswiki::cfg{UsersWebName}, $who . "NotifyList" ) ) {
+    if (
+        !Foswiki::Func::topicExists(
+            $Foswiki::cfg{UsersWebName},
+            $who . "NotifyList"
+        )
+      )
+    {
         Foswiki::Func::writeDebug("TEST1");
         ( $tmpMeta, $tmpText ) =
-          Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName}, "NotificationPluginListTemplate" );
+          Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName},
+            "NotificationPluginListTemplate" );
         $tmpMeta->put( "TOPICPARENT", { "name" => $who } );
         saveUserNotifyList( $who, $tmpMeta, $tmpText );
     }
     else {
         ( $tmpMeta, $tmpText ) =
-          Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName}, $who . "NotifyList" );
+          Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName},
+            $who . "NotifyList" );
     }
     return ( $tmpMeta, $tmpText );
 }
@@ -330,9 +339,12 @@ sub saveUserNotifyList {
 #Foswiki::Func::writeDebug( "NTF:saveUserNotifyList: Saving Main.".$who."NotifyList topic..." );
     $text =~ s/   /\t/g;
 
-    my $topicObject =
-      Foswiki::Func::saveTopic( $Foswiki::cfg{UsersWebName}, $who . "NotifyList", $meta, $text );
-    if (! $topicObject ) {
+    my $topicObject = Foswiki::Func::saveTopic(
+        $Foswiki::cfg{UsersWebName},
+        $who . "NotifyList",
+        $meta, $text
+    );
+    if ( !$topicObject ) {
         my $url =
           Foswiki::Func::getOopsUrl( $web, $topic, "oopssaveerr", $error );
         Foswiki::Func::redirectCgiQuery( $query, $url );
