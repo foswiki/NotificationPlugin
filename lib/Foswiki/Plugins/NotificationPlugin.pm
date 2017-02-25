@@ -6,8 +6,8 @@ use vars qw(
   $sender @users $debug @sections
 );
 
-$VERSION = '$Rev$';
-$RELEASE = '1.20';
+$VERSION = '1.30';
+$RELEASE = '24 Feb 2017';
 our $SHORTDESCRIPTION =
   'Send fine grained notifications of topics you are interested in';
 
@@ -59,7 +59,7 @@ sub commonTagsHandler {
     # Called by sub handleCommonTags, after %INCLUDE:"..."%
 
     # do custom extension rule, like for example:
-    $_[0] =~ s/%NTF{(.*?)}%/&showNotifyButtons($1)/ge;
+    $_[0] =~ s/%NTF\{(.*?)\}%/&showNotifyButtons($1)/ge;
 }
 
 # =========================
@@ -76,7 +76,7 @@ sub beforeSaveHandler {
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 1 ) );
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 2 ) );
 
-    #Foswiki::Func::writeDebug( "COUNT = $#notifyUsers" );
+    Foswiki::Func::writeDebug( "COUNT = $#notifyUsers" );
     my $subject = "Topic $_[2].$_[1] has been changed by $wikiUser.";
     my $body =
         "Topic "
@@ -91,7 +91,7 @@ sub getUsers {
     my @result;
 
     my @topics =
-      Foswiki::Func::getTopicList(Foswiki::Func::getMainWebname());
+      Foswiki::Func::getTopicList($Foswiki::cfg{UsersWebName});
 
     foreach my $name (@topics) {
         next unless $name =~ /^(.*)NotifyList$/;
@@ -112,7 +112,7 @@ sub getUsersToNotify {
     foreach my $tmp (@users) {
 
         #Foswiki::Func::writeDebug( "TMP = $tmp" );
-        my $text = Foswiki::Func::readTopic( Foswiki::Func::getMainWebname(),
+        my $text = Foswiki::Func::readTopic($Foswiki::cfg{UsersWebName},
             "$tmp" . "NotifyList" );
         my $test = "";
         foreach my $line ( split( /\n/, $text ) ) {
@@ -190,18 +190,30 @@ sub getNotificationsOfUser {
 sub notifyUsers {
     my ( $notifyUsers, $subject, $body ) = @_;
 
-    #Foswiki::Func::writeDebug( "NT = $notifyUsers" );
+    Foswiki::Func::writeDebug( "NT = $notifyUsers" );
     foreach my $tmp ( @{$notifyUsers} ) {
         Foswiki::Func::writeDebug("MAIL SENT TO $tmp ...");
 
-        #my $email = "Date: ".Foswiki::handleTime("","gmtime")."\n";
-        my $email .= "From: $sender\n";
-        $email    .= "To: " . getUserEmail($tmp) . "\n";
-        $email    .= "CC: \n";
-        $email    .= "Subject: $subject\n\n";
-        $email    .= "$body\n";
+        my $to = getUserEmail($tmp);
+my $email = <<"HERE";
+From: $sender
+To: $to
+Subject: $subject
+Auto-Submitted: auto-generated
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="------------2D594AE113AD25493C2C7246"
 
-        #Foswiki::Func::writeDebug( "Sending mail to $tmp ..." );
+This is a multi-part message in MIME format.
+--------------2D594AE113AD25493C2C7246
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+$body
+
+--------------2D594AE113AD25493C2C7246--
+HERE
+
+        Foswiki::Func::writeDebug( "Sending mail to $tmp ..." );
         my $error = Foswiki::Func::sendEmail($email);
         if ($error) {
             Foswiki::Func::writeDebug("ERROR WHILE SENDING MAIL - $error");
@@ -232,7 +244,7 @@ sub addItemToNotifyList {
       if ( isItemInSection( $who, $what, $section, $text ) );
     my @items =
       Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
-        $Foswiki::wikiName, $section, $text );
+        Foswiki::Func::getWikiName(), $section, $text );
     my $newText = "";
     my $tmp     = 0;
     foreach $line ( split( /\n/, $text ) ) {
@@ -269,7 +281,7 @@ sub removeItemFromNotifyList {
       if ( !isItemInSection( $who, $what, $section, $text ) );
     my @items =
       Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
-        $Foswiki::wikiName, $section, $text );
+        Foswiki::Func::getWikiName(), $section, $text );
     my $newText = "";
     my $tmp     = 0;
     foreach $line ( split( /\n/, $text ) ) {
@@ -298,16 +310,16 @@ sub checkUserNotifyList {
     my $tmpMeta;
 
     #Foswiki::Func::writeDebug( "NTF:checkUserNotifyList: WHO = $who" );
-    if ( !Foswiki::Func::topicExists( "Main", $who . "NotifyList" ) ) {
+    if ( !Foswiki::Func::topicExists( $Foswiki::cfg{UsersWebName}, $who . "NotifyList" ) ) {
         Foswiki::Func::writeDebug("TEST1");
         ( $tmpMeta, $tmpText ) =
-          Foswiki::Func::readTopic( "Main", "NotificationPluginListTemplate" );
-        $tmpMeta->put( "TOPICPARENT", ( "name" => $who ) );
+          Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName}, "NotificationPluginListTemplate" );
+        $tmpMeta->put( "TOPICPARENT", { "name" => $who } );
         saveUserNotifyList( $who, $tmpMeta, $tmpText );
     }
     else {
         ( $tmpMeta, $tmpText ) =
-          Foswiki::Func::readTopic( "Main", $who . "NotifyList" );
+          Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName}, $who . "NotifyList" );
     }
     return ( $tmpMeta, $tmpText );
 }
@@ -318,9 +330,9 @@ sub saveUserNotifyList {
 #Foswiki::Func::writeDebug( "NTF:saveUserNotifyList: Saving Main.".$who."NotifyList topic..." );
     $text =~ s/   /\t/g;
 
-    my $error =
-      Foswiki::Func::saveTopic( "Main", $who . "NotifyList", $meta, $text );
-    if ($error) {
+    my $topicObject =
+      Foswiki::Func::saveTopic( $Foswiki::cfg{UsersWebName}, $who . "NotifyList", $meta, $text );
+    if (! $topicObject ) {
         my $url =
           Foswiki::Func::getOopsUrl( $web, $topic, "oopssaveerr", $error );
         Foswiki::Func::redirectCgiQuery( $query, $url );
@@ -355,13 +367,15 @@ sub showNotifyButtons {
     $opt   = $1 if ( $attrs =~ /optional=\"(.*?)\"/ );
     my $text = "";
 
-    if ( $Foswiki::wikiName ne "WikiGuest" ) {
+    my $curWikiName = Foswiki::Func::getWikiName();
+
+    if ( $curWikiName ne "WikiGuest" ) {
         $tinOn = "off"
-          if ( !isItemInSection( $Foswiki::wikiName, "$web.$topic", 0 ) );
-        $winOn = "off" if ( !isItemInSection( $Foswiki::wikiName, "$web", 1 ) );
+          if ( !isItemInSection( $curWikiName, "$web.$topic", 0 ) );
+        $winOn = "off" if ( !isItemInSection( $curWikiName, "$web", 1 ) );
         $tnOn = "off"
-          if ( !isItemInSection( $Foswiki::wikiName, "$web.$topic", 3 ) );
-        $wnOn = "off" if ( !isItemInSection( $Foswiki::wikiName, "$web", 4 ) );
+          if ( !isItemInSection( $curWikiName, "$web.$topic", 3 ) );
+        $wnOn = "off" if ( !isItemInSection( $curWikiName, "$web", 4 ) );
         $text .=
             "<input onClick='javascript:window.open(\""
           . Foswiki::Func::getScriptUrl( $web, $topic, "changenotify" )
