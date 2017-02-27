@@ -1,65 +1,66 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 package Foswiki::Plugins::NotificationPlugin;
 
-use vars qw(
-  $web $topic $user $installWeb $VERSION $RELEASE $pluginName
-  $sender @users $debug @sections
-);
+use warnings;
+use strict;
 
-$VERSION = '1.30';
-$RELEASE = '24 Feb 2017';
+our $VERSION = '1.30';
+our $RELEASE = '24 Feb 2017';
 our $SHORTDESCRIPTION =
   'Send fine grained notifications of topics you are interested in';
 
-$pluginName = 'NotificationPlugin';    # Name of this Plugin
+my @sections = (
+    "(Topic) immediate notifications",
+    "(Web) immediate notifications",
+    "(Regex) immediate notifications",
+    "(Topic) notifications",
+    "(Web) notifications",
+    "(Regex) notifications"
+);
+
+my @users;
+my $debug;
+my $sender;
 
 # =========================
 sub initPlugin {
-    ( $topic, $web, $user, $installWeb ) = @_;
+    my ( $topic, $web, $user, $installWeb ) = @_;
 
     # check for Plugins.pm versions
     if ( $Foswiki::Plugins::VERSION < 1 ) {
         Foswiki::Func::writeWarning(
-            "Version mismatch between $pluginName and Plugins.pm");
+            "Version mismatch between NotificationPlugin and Plugins.pm");
         return 0;
     }
 
-    @users    = getUsers();
-    @sections = (
-        "(Topic) immediate notifications",
-        "(Web) immediate notifications",
-        "(Regex) immediate notifications",
-        "(Topic) notifications",
-        "(Web) notifications",
-        "(Regex) notifications"
+    @users = getUsers();
+
+    $debug = $Foswiki::cfg{Plugins}{NotificationPlugin}{Debug} || 0;
+
+    Foswiki::Func::registerRESTHandler(
+        'changenotify', \&restHandler,
+        authenticate => 1,  # Set to 0 if handler should be useable by WikiGuest
+        validate     => 0,  # Set to 0 to disable StrikeOne CSRF protection
+        http_allow => 'POST', # Set to 'GET,POST' to allow use HTTP GET and POST
+        description => 'Modify NotificationPlugin subscriptions'
     );
 
-    $debug = $Foswiki::cfg{Plugins}{$pluginName}{Debug} || 0;
+    Foswiki::Func::registerTagHandler( 'NTF', \&_NTF );
 
 # KISS:
-# $sender = $Foswiki::cfg{Plugins}{$pluginName}{SENDER} || "Foswiki NotificationPlugin";
+# $sender = $Foswiki::cfg{Plugins}{NotificationPlugin}{SENDER} || "Foswiki NotificationPlugin";
     $sender = $Foswiki::cfg{WebMasterEmail};
 
     # Plugin correctly initialized
     Foswiki::Func::writeDebug(
-        "- Foswiki::Plugins::${pluginName}::initPlugin( $web.$topic ) is OK")
-      if $debug;
+"- Foswiki::Plugins::NotificationPlugin::initPlugin( $web.$topic ) is OK"
+    ) if $debug;
     return 1;
 }
 
-# =========================
-sub commonTagsHandler {
-    ### my ( $text, $topic, $web ) = @_;
+sub _NTF {
 
-    Foswiki::Func::writeDebug(
-        "- ${pluginName}::commonTagsHandler( $_[2].$_[1] )")
-      if $debug;
-
-    # This is the place to define customized tags and variables
-    # Called by sub handleCommonTags, after %INCLUDE:"..."%
-
-    # do custom extension rule, like for example:
-    $_[0] =~ s/%NTF\{(.*?)\}%/&showNotifyButtons($1)/ge;
+    return showNotifyButtons( $_[1] );
 }
 
 # =========================
@@ -67,10 +68,11 @@ sub beforeSaveHandler {
     ### my ( $text, $topic, $web ) = @_;
 
     Foswiki::Func::writeDebug(
-        "- ${pluginName}::beforeSaveHandler( $_[2].$_[1] )")
+        "- NotificatinoPlugin::beforeSaveHandler( $_[2].$_[1] )")
       if $debug;
 
-    my $wikiUser = Foswiki::Func::userToWikiName( $user, 1 );
+    my $wikiUser = Foswiki::Func::getWikiName();
+
     my @notifyUsers = ();
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 0 ) );
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 1 ) );
@@ -90,12 +92,13 @@ sub beforeSaveHandler {
 sub getUsers {
     my @result;
 
+# Consider %SEARCH{"notifications" type="literal" topic="*NotifyList" web="Usersweb" format="$topic" separator="," nonoise="on"}%
     my @topics = Foswiki::Func::getTopicList( $Foswiki::cfg{UsersWebName} );
 
     foreach my $name (@topics) {
         next unless $name =~ /^(.*)NotifyList$/;
 
-        #Foswiki::Func::writeDebug( "NAME = $1" );
+        Foswiki::Func::writeDebug("NAME = $1");
         $result[ ++$#result ] = $1 if ( $1 ne "" );
     }
 
@@ -161,7 +164,7 @@ sub getNotificationsOfUser {
     my @result;
 
     #Foswiki::Func::writeDebug( "USER = $tuser" );
-    $test = "";
+    my $test = "";
     foreach my $line ( split( /\n/, $text ) ) {
 
         #Foswiki::Func::writeDebug( "LINE = $line" );
@@ -225,7 +228,7 @@ sub getUserEmail {
     my @emails = Foswiki::Func::wikinameToEmails($who);
     return "" if ( $#emails < 0 );
     Foswiki::Func::writeDebug(
-        "- Foswiki::Plugins::${pluginName} USER: $who, EMAIL $emails[0]")
+        "- Foswiki::Plugins::NotificationPlugin USER: $who, EMAIL $emails[0]")
       if $debug;
     return $emails[0];
 }
@@ -247,7 +250,7 @@ sub addItemToNotifyList {
         $section, $text );
     my $newText = "";
     my $tmp     = 0;
-    foreach $line ( split( /\n/, $text ) ) {
+    foreach my $line ( split( /\n/, $text ) ) {
 
         #Foswiki::Func::writeDebug( "LINE = $line" );
         $tmp = 0 if ( $line =~ /^---\+\+\s/ && $tmp );
@@ -285,7 +288,7 @@ sub removeItemFromNotifyList {
         $section, $text );
     my $newText = "";
     my $tmp     = 0;
-    foreach $line ( split( /\n/, $text ) ) {
+    foreach my $line ( split( /\n/, $text ) ) {
         $tmp = 0 if ( $line =~ /^---\+\+\s/ && $tmp );
         $tmp = 1 if ( $line =~ /$sections[$section]/ );
         if ( $tmp == 0 ) {
@@ -318,7 +321,6 @@ sub checkUserNotifyList {
         )
       )
     {
-        Foswiki::Func::writeDebug("TEST1");
         ( $tmpMeta, $tmpText ) =
           Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName},
             "NotificationPluginListTemplate" );
@@ -337,7 +339,6 @@ sub saveUserNotifyList {
     my ( $who, $meta, $text ) = @_;
 
 #Foswiki::Func::writeDebug( "NTF:saveUserNotifyList: Saving Main.".$who."NotifyList topic..." );
-    $text =~ s/   /\t/g;
 
     my $topicObject = Foswiki::Func::saveTopic(
         $Foswiki::cfg{UsersWebName},
@@ -345,9 +346,10 @@ sub saveUserNotifyList {
         $meta, $text
     );
     if ( !$topicObject ) {
-        my $url =
-          Foswiki::Func::getOopsUrl( $web, $topic, "oopssaveerr", $error );
-        Foswiki::Func::redirectCgiQuery( $query, $url );
+
+     #my $url =
+     #  Foswiki::Func::getOopsUrl( $web, $topic, "oopssaveerr", 'save failed' );
+     #Foswiki::Func::redirectCgiQuery( $query, $url );
     }
 }
 
@@ -366,20 +368,23 @@ sub isItemInSection {
 }
 
 sub showNotifyButtons {
-    my $attrs = shift;
+    my $params = shift;
     my ( $tin, $win, $tn, $wn, $popup ) = ( "on", "on", "on", "on", "on" );
     my ( $tinOn, $winOn, $tnOn, $wnOn ) = ( "on", "on", "on", "on" );
-    my $opt = "";
     my %tmp = ( "on" => "OFF", "off" => "ON" );
-    $tin   = $1 if ( $attrs =~ /tin=\"(.*?)\"/ );
-    $win   = $1 if ( $attrs =~ /win=\"(.*?)\"/ );
-    $tn    = $1 if ( $attrs =~ /tn=\"(.*?)\"/ );
-    $wn    = $1 if ( $attrs =~ /wn=\"(.*?)\"/ );
-    $popup = $1 if ( $attrs =~ /popup=\"(.*?)\"/ );
-    $opt   = $1 if ( $attrs =~ /optional=\"(.*?)\"/ );
+    $tin = $params->{tin} || "on";
+    $win = $params->{win} || "on";
+    $tn  = $params->{tn}  || "on";
+    $wn  = $params->{wn}  || "on";
+
+    #$popup = $1 if ( $attrs =~ /popup=\"(.*?)\"/ );
     my $text = "";
 
     my $curWikiName = Foswiki::Func::getWikiName();
+    my $web         = $Foswiki::Plugins::SESSION->{webName};
+    my $topic       = $Foswiki::Plugins::SESSION->{topicName};
+    my $restURL     = Foswiki::Func::getScriptUrl( undef, undef, 'rest' )
+      . '/NotificationPlugin/changenotify';
 
     if ( $curWikiName ne "WikiGuest" ) {
         $tinOn = "off"
@@ -393,28 +398,152 @@ sub showNotifyButtons {
           . Foswiki::Func::getScriptUrl( $web, $topic, "changenotify" )
           . "?popup=on\");' type='button' value='Popup'>&nbsp;"
           if ( $popup eq "on" );
-        $text .=
-            "<input onClick='javascript:location.href(\""
-          . Foswiki::Func::getScriptUrl( $web, $topic, "changenotify" )
-          . "?what=TIN&action=$tmp{$tinOn}&$opt\");' type='button' value='TIN $tinOn' title='Topic immediate notifications! Click to set it $tmp{$tinOn}!'>&nbsp;"
-          if ( $tin eq "on" );
-        $text .=
-            "<input onClick='javascript:location.href(\""
-          . Foswiki::Func::getScriptUrl( $web, $topic, "changenotify" )
-          . "?what=WIN&action=$tmp{$winOn}&$opt\");' type='button' value='WIN $winOn' title='Web immediate notifications! Click to set it $tmp{$winOn}!'>&nbsp;"
-          if ( $win eq "on" );
-        $text .=
-            "<input onClick='javascript:location.href(\""
-          . Foswiki::Func::getScriptUrl( $web, $topic, "changenotify" )
-          . "?what=TN&action=$tmp{$tnOn}&$opt\");' type='button' value='TN $tnOn' title='Topic notifications! Click to set it $tmp{$tnOn}!'>&nbsp;"
-          if ( $tn eq "on" );
-        $text .=
-            "<input onClick='javascript:location.href(\""
-          . Foswiki::Func::getScriptUrl( $web, $topic, "changenotify" )
-          . "?what=WN&action=$tmp{$wnOn}&$opt\");' type='button' value='WN $wnOn' title='Web notifications! Click to set it $tmp{$wnOn}!'>&nbsp;"
-          if ( $wn eq "on" );
+        $text .= <<"HERE" if $tin eq 'on';
+            <form id="TIN" action="$restURL" method="post">
+                <input type="hidden" name="what" value="TIN" />
+                <input type="hidden" name="topic" value="$web.$topic" />
+                <input type="hidden" name="action" value="$tmp{$tinOn}" />
+                <input  href="#" type="button" onclick="document.getElementById('TIN').submit();" value="TIN $tinOn" title="Topic immediate notifications! Click to set it $tmp{$tinOn}!" />
+            </form>
+HERE
+        $text .= <<"HERE" if $win eq 'on';
+            <form id="WIN" action="$restURL" method="post">
+                <input type="hidden" name="what" value="WIN" />
+                <input type="hidden" name="topic" value="$web.$topic" />
+                <input type="hidden" name="action" value="$tmp{$winOn}" />
+                <input  href="#" type="button" onclick="document.getElementById('WIN').submit();" value="WIN $winOn" title="Topic immediate notifications! Click to set it $tmp{$winOn}!" />
+            </form>
+HERE
+
+        $text .= <<"HERE" if $tn eq 'on';
+            <form id="TN" action="$restURL" method="post">
+                <input type="hidden" name="what" value="TN" />
+                <input type="hidden" name="topic" value="$web.$topic" />
+                <input type="hidden" name="action" value="$tmp{$tnOn}" />
+                <input  href="#" type="button" onclick="document.getElementById('TN').submit();" value="TN $tnOn" title="Topic immediate notifications! Click to set it $tmp{$tnOn}!" />
+            </form>
+HERE
+
+        $text .= <<"HERE" if $wn eq 'on';
+            <form id="WN" action="$restURL" method="post">
+                <input type="hidden" name="what" value="WN" />
+                <input type="hidden" name="topic" value="$web.$topic" />
+                <input type="hidden" name="action" value="$tmp{$wnOn}" />
+                <input  href="#" type="button" onclick="document.getElementById('WN').submit();" value="WN $wnOn" title="Topic immediate notifications! Click to set it $tmp{$wnOn}!" />
+            </form>
+HERE
+
     }
     return $text;
 }
 
+sub restHandler {
+
+    my ( $session, $subject, $verb, $response ) = @_;
+
+    my $web   = $session->{webName};
+    my $topic = $session->{topicName};
+
+  #
+  #   # Use return to have foswiki manage the output
+  #   return "This is an example of a REST invocation\n\n";
+  #
+  #   # To completely control the output from the handler:
+  #   $response->headers()   - output headers, which must be utf-8 encoded
+  #   $response->body()      - output binary data that should not be encoded.
+  #   $response->print()     - output unicode text.
+  #   # Note that print() and body() may not be combined.  Use one or the other.
+
+    my $query         = Foswiki::Func::getCgiQuery();
+    my $wikiName      = Foswiki::Func::getWikiName();
+    my $scriptUrlPath = Foswiki::Func::getScriptUrlPath('view');
+
+    my $action = $query->param("action");
+    my $what   = $query->param("what");
+
+    if ( $wikiName ne "WikiGuest" ) {
+        if ($action) {
+            if ($what) {
+                modify_notification( $web, $topic, $what, $action );
+            }
+            else {
+                # loop thru all possible checkboxes
+                for (qw(TIN WIN TN WN)) {
+                    modify_notification( $web,
+                        $topic, $_, scalar $query->param($_) );
+                }
+            }
+        }
+
+        # All work is done; redirect if needed
+        unless ( scalar $query->param("popup") ) {
+            Foswiki::Func::writeDebug("URL = $scriptUrlPath/$web/$topic");
+            Foswiki::Func::redirectCgiQuery( $query,
+                $scriptUrlPath . "/$web/$topic" );
+        }
+    }
+
+    #  Fallthru: do something if no Javascript
+    return draw_checkboxes( $scriptUrlPath, $topic, $web );
+}
+
+sub modify_notification {
+    my ( $webName, $topic, $what, $action ) = @_;
+    $action ||= '';
+
+    Foswiki::Func::writeDebug("ModifyNotiication entered - ($what), ($action)");
+
+    my %tmp = ( "TIN" => 0, "WIN" => 1, "TN" => 3, "WN" => 4 );
+
+    my $str = "$webName.$topic";
+    $str = "$webName" if ( $tmp{$what} == 1 || $tmp{$what} == 4 );
+    Foswiki::Func::writeDebug("WHAT = $what");
+    Foswiki::Func::writeDebug("STR = $str");
+    my ( $meta, $text ) = ( "", "" );
+    my $wikiName = Foswiki::Func::getWikiName;
+
+    if ( $action eq "ON" ) {
+        ( $meta, $text ) =
+          Foswiki::Plugins::NotificationPlugin::addItemToNotifyList( $wikiName,
+            $str, $tmp{$what} );
+    }
+    else {
+        ( $meta, $text ) =
+          Foswiki::Plugins::NotificationPlugin::removeItemFromNotifyList(
+            $wikiName, $str, $tmp{$what} );
+    }
+    Foswiki::Plugins::NotificationPlugin::saveUserNotifyList( $wikiName, $meta,
+        $text );
+}
+
+sub draw_checkboxes {
+    my ( $scriptUrlPath, $topic, $webName ) = @_;
+
+    my $wikiName = Foswiki::Func::getWikiName();
+
+    my $tinOn =
+      Foswiki::Plugins::NotificationPlugin::isItemInSection( $wikiName,
+        "$webName.$topic", 0 );
+    my $winOn =
+      Foswiki::Plugins::NotificationPlugin::isItemInSection( $wikiName,
+        "$webName", 1 );
+    my $tnOn = Foswiki::Plugins::NotificationPlugin::isItemInSection( $wikiName,
+        "$webName.$topic", 3 );
+    my $wnOn = Foswiki::Plugins::NotificationPlugin::isItemInSection( $wikiName,
+        "$webName", 4 );
+    my $action = $scriptUrlPath . "/changenotify/" . $webName . "/" . $topic;
+    my $html =
+qq!<form onSubmit="setTimeout('window.close()',2000)" method="post" action="$action">
+    <input type="hidden" name="popup" value="1" />
+    <input type="checkbox" name="TIN" value="ON">Immediate Notification of changes to <b>$topic</b><br>
+    <input type="checkbox" name="WIN" value="ON">Immediate Notification of changes to <b>$webName</b><br>
+    <input type="checkbox" name="TN" value="ON" >Normal Notification of changes to <b>$topic</b><br>
+    <input type="checkbox" name="WN" value="ON" >Normal Notification of changes to <b>$webName</b><br>
+    <input type="submit" value="Update" name="action"></form>!;
+    $html =~ s/(name="TIN")/$1 checked="checked"/ if $tinOn;
+    $html =~ s/(name="WIN")/$1 checked="checked"/ if $winOn;
+    $html =~ s/(name="TN")/$1 checked="checked"/  if $tnOn;
+    $html =~ s/(name="WN")/$1 checked="checked"/  if $wnOn;
+    return $html;
+}
 1;
