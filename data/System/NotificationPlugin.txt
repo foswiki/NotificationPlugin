@@ -1,3 +1,4 @@
+%META:TOPICINFO{author="JoeUser" comment="pending" date="1492043321" format="1.1" version="2"}%
 ---+!! <nop>%TOPIC%
 <!--
    * Set SHORTDESCRIPTION = %$SHORTDESCRIPTION%
@@ -32,6 +33,27 @@ Default values for all these attributes are "on". You can set it "off" to hide b
 ---++++ NTF examples
 	* =%<nop>NTF{}%= - displays all four buttons
 	* =%<nop>NTF{win="off" wn="off"}%= - displays only buttons for topic immediate notification and regular topic notification
+
+---++++ NTF Popup
+%STARTSECTION{"notification"}%
+<div id='changenotify' title="%MAKETEXT{"Change Notification"}%" class="jqUIDialog { modal:true, resizable:false, draggable:false, width:400, autoCenter:true, cache:false}">
+<form  method="post" action="%SCRIPTURLPATH{"rest"}%/NotificationPlugin/changenotify">
+    <input type="hidden" name="popup" value="1" />
+    <input type="hidden" name="topic" value="%URLPARAM{"notifyweb"}%.%URLPARAM{"notifytopic"}%" />
+---++ <nop>%URLPARAM{"notifyweb"}%.%URLPARAM{"notifytopic"}%
+---+++ Immediate Notifications
+    <input type="checkbox" name="TIN" value="ON" %URLPARAM{"TIN"}% >changes to the Topic<br/>
+    <input type="checkbox" name="WIN" value="ON" %URLPARAM{"WIN"}% >changes to the Web<br/>
+---+++ Normal Notifications
+    <input type="checkbox" name="TN" value="ON" %URLPARAM{"TN"}% >changes to the Topic<br/>
+    <input type="checkbox" name="WN" value="ON" %URLPARAM{"WN"}% >changes to the web<br/>
+    <input type="hidden" value="Update" name="action"></form>
+   <a class="jqUIDialogButton jqUIDialogSubmit jqUIDialogClose {icon:'ui-icon-circle-check'}" >%MAKETEXT{"Change"}%</a>
+   <a id='cancelLink' class="jqUIDialogButton jqUIDialogClose {icon:'ui-icon-cancel'}">%MAKETEXT{"Cancel"}%</a>
+</div>
+
+
+%ENDSECTION{"notification"}%
 
 ---++ Description of <nop>NotifyList topics
 
