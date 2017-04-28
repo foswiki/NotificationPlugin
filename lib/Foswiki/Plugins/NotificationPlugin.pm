@@ -4,6 +4,9 @@ package Foswiki::Plugins::NotificationPlugin;
 use warnings;
 use strict;
 
+use Foswiki::Func;
+use Foswiki::Time;
+
 our $VERSION = '1.30';
 our $RELEASE = '24 Feb 2017';
 our $SHORTDESCRIPTION =
@@ -19,9 +22,7 @@ my @sections = (
     "(Regex) notifications"
 );
 
-my @users;
 my $debug;
-my $sender;
 
 # =========================
 sub initPlugin {
@@ -34,23 +35,25 @@ sub initPlugin {
         return 0;
     }
 
-    @users = getUsers();
-
     $debug = $Foswiki::cfg{Plugins}{NotificationPlugin}{Debug} || 0;
 
     Foswiki::Func::registerRESTHandler(
-        'changenotify', \&restHandler,
+        'changenotify', \&changenotify_Handler,
         authenticate => 1,  # Set to 0 if handler should be useable by WikiGuest
         validate     => 1,  # Set to 0 to disable StrikeOne CSRF protection
         http_allow => 'POST', # Set to 'GET,POST' to allow use HTTP GET and POST
         description => 'Modify NotificationPlugin subscriptions'
     );
 
-    Foswiki::Func::registerTagHandler( 'NTF', \&_NTF );
+    Foswiki::Func::registerRESTHandler(
+        'mailnotify', \&mailnotify_Handler,
+        authenticate => 1,  # Set to 0 if handler should be useable by WikiGuest
+        validate     => 1,  # Set to 0 to disable StrikeOne CSRF protection
+        http_allow => 'POST', # Set to 'GET,POST' to allow use HTTP GET and POST
+        description => 'NotificationPlugin mail notificaions'
+    );
 
-# KISS:
-# $sender = $Foswiki::cfg{Plugins}{NotificationPlugin}{SENDER} || "Foswiki NotificationPlugin";
-    $sender = $Foswiki::cfg{WebMasterEmail};
+    Foswiki::Func::registerTagHandler( 'NTF', \&_NTF );
 
     # Plugin correctly initialized
     Foswiki::Func::writeDebug(
@@ -79,31 +82,38 @@ sub beforeSaveHandler {
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 1 ) );
     push( @notifyUsers, getUsersToNotify( $_[2], $_[1], 2 ) );
 
-    Foswiki::Func::writeDebug("COUNT = $#notifyUsers") if $debug;
+    my %seen = ();
+    my @unique = grep { !$seen{$_}++ } @notifyUsers;
+
+    Foswiki::Func::writeDebug("COUNT = $#unique") if $debug;
     my $subject = "Topic $_[2].$_[1] has been changed by $wikiUser.";
     my $body =
         "Topic "
       . Foswiki::Func::getScriptUrl( $_[2], $_[1], "view" )
       . " has been changed by $wikiUser at "
       . Foswiki::Func::formatTime( time() ) . " GMT";
-    notifyUsers( \@notifyUsers, $subject, $body );
+    notifyUsers( \@unique, $subject, $body );
 }
 
 # =========================
 sub getUsers {
     my @result;
 
-# Consider %SEARCH{"notifications" type="literal" topic="*NotifyList" web="Usersweb" format="$topic" separator="," nonoise="on"}%
-    my @topics = Foswiki::Func::getTopicList( $Foswiki::cfg{UsersWebName} );
-
-    foreach my $name (@topics) {
-        next unless $name =~ /^(.*)NotifyList$/;
-
-        Foswiki::Func::writeDebug("NAME = $1") if $debug;
-        $result[ ++$#result ] = $1 if ( $1 ne "" );
+    my $it = Foswiki::Func::eachUser();
+    while ( $it->hasNext() ) {
+        my $tmp = $it->next();
+        if (
+            Foswiki::Func::topicExists(
+                $Foswiki::Cfg{UsersWebName},
+                $tmp . 'NotifyList'
+            )
+          )
+        {
+            push @result, $tmp;
+        }
     }
 
-    #Foswiki::Func::writeDebug( "USERS = $#result" );
+    #print STDERR Data::Dumper::Dumper( \@result );
     return @result;
 }
 
@@ -111,10 +121,27 @@ sub getUsersToNotify {
     my ( $tweb, $ttopic, $section ) = @_;
     my @result;
 
-    #Foswiki::Func::writeDebug( "TYPE = $type" );
-    foreach my $tmp (@users) {
+    my $it = Foswiki::Func::eachUser();
+    while ( $it->hasNext() ) {
+        my $tmp = $it->next();
+        next
+          unless (
+            Foswiki::Func::topicExists(
+                $Foswiki::Cfg{UsersWebName},
+                $tmp . 'NotifyList'
+            )
+          );
 
-        #Foswiki::Func::writeDebug( "TMP = $tmp" );
+        # Don't notify if the user cannot view the topic.
+        next
+          unless (
+            Foswiki::Func::checkAccessPermission(
+                'VIEW', $tmp, undef, $ttopic, $tweb
+            )
+          );
+
+       # Access permissions are NOT checked for the *NotifyList topic.
+       # The current user saving the topic doesn't necessarily have view access.
         my $text = Foswiki::Func::readTopic( $Foswiki::cfg{UsersWebName},
             "$tmp" . "NotifyList" );
         my $test = "";
@@ -151,6 +178,8 @@ sub getUsersToNotify {
             $test = $1 if ( $line =~ /$sections[$section]/ );
         }
     }
+
+    #print STDERR "Notify scheduled for: " . Data::Dumper::Dumper( \@result );
     return @result;
 }
 
@@ -193,6 +222,9 @@ sub getNotificationsOfUser {
 sub notifyUsers {
     my ( $notifyUsers, $subject, $body ) = @_;
 
+    my $sender = $Foswiki::cfg{Email}{WikiAgentEmail}
+      || $Foswiki::cfg{WebMasterEmail};
+
     Foswiki::Func::writeDebug( "NT = " . join( ',', $notifyUsers ) ) if $debug;
     foreach my $tmp ( @{$notifyUsers} ) {
         Foswiki::Func::writeDebug("MAIL SENT TO $tmp ...") if $debug;
@@ -217,6 +249,7 @@ $body
 HERE
 
         Foswiki::Func::writeDebug("Sending mail to $tmp ...") if $debug;
+
         my $error = Foswiki::Func::sendEmail($email);
         if ($error) {
             Foswiki::Func::writeDebug("ERROR WHILE SENDING MAIL - $error");
@@ -312,7 +345,7 @@ sub checkUserNotifyList {
     my $tmpText;
     my $tmpMeta;
 
-    #Foswiki::Func::writeDebug( "NTF:checkUserNotifyList: WHO = $who" );
+    #print STDERR "NTF:checkUserNotifyList: WHO = $who\n";
     if (
         Foswiki::Func::topicExists(
             $Foswiki::cfg{UsersWebName},
@@ -364,15 +397,16 @@ sub isItemInSection {
 
 sub showNotifyButtons {
     my $params = shift;
-    my ( $tin, $win, $tn, $wn, $popup ) = ( "on", "on", "on", "on", "on" );
+    my ( $tin, $win, $tn, $wn, $popup ) = ( "on", "on", "on", "on", "off" );
     my ( $tinOn, $winOn, $tnOn, $wnOn ) = ( "on", "on", "on", "on" );
     my %tmp = ( "on" => "OFF", "off" => "ON" );
-    $tin = $params->{tin} || "on";
-    $win = $params->{win} || "on";
-    $tn  = $params->{tn}  || "on";
-    $wn  = $params->{wn}  || "on";
+    $popup = $params->{popup} || "off";
+    my $def = ( $popup eq 'on' ) ? 'off' : 'on';
+    $tin = $params->{tin} || $def;
+    $win = $params->{win} || $def;
+    $tn  = $params->{tn}  || $def;
+    $wn  = $params->{wn}  || $def;
 
-    #$popup = $1 if ( $attrs =~ /popup=\"(.*?)\"/ );
     my $text = "";
 
     my $curWikiName = Foswiki::Func::getWikiName();
@@ -396,7 +430,7 @@ sub showNotifyButtons {
             my $wnC  = ( $wnOn  eq 'on' ) ? 'checked' : '';
             $text .= <<HERE;
             %JQREQUIRE{"ui::dialog"}%
-           <a href="%SCRIPTURLPATH{view}%/%SYSTEMWEB%/NotificationPlugin?skin=text;section=notification;TIN=$tinC;WIN=$winC;WN=$wnC;TN=$tnC;notifyweb=%WEB%;notifytopic=%TOPIC%" alt="Update..." title="Update" class="foswikiButton jqUIDialogLink {cache:false}">Update notifications</a>
+           <a href="%SCRIPTURLPATH{view}%/%SYSTEMWEB%/NotificationPlugin?skin=text;section=notification;TIN=$tinC;WIN=$winC;WN=$wnC;TN=$tnC;notifyweb=%WEB%;notifytopic=%TOPIC%" alt="Update..." title="Update" class="jqUIDialogLink {cache:false}">Notifications</a>
 HERE
         }
 
@@ -439,7 +473,7 @@ HERE
     return $text;
 }
 
-sub restHandler {
+sub changenotify_Handler {
 
     my ( $session, $subject, $verb, $response ) = @_;
 
@@ -507,6 +541,269 @@ sub modify_notification {
     }
 
     return ( $meta, $text );
+}
+
+sub mailnotify_Handler {
+
+    my ( $session, $subject, $verb, $response ) = @_;
+
+    my $web   = $session->{webName};
+    my $topic = $session->{topicName};
+
+    my $query         = Foswiki::Func::getCgiQuery();
+    my $wikiName      = Foswiki::Func::getWikiName();
+    my $scriptUrlPath = Foswiki::Func::getScriptUrlPath( $web, $topic, 'view' );
+
+    my $quiet = $query->param('q');
+
+    $debug = '0' if $quiet;
+
+    &Foswiki::Func::writeDebug("START REGULAR NOTIFICATIONS");
+    &Foswiki::Func::writeDebug("===========================");
+    $debug && print "Foswiki mail notification\n";
+    $debug && print "- to suppress all normal output: mailnotify -q\n";
+    my @users = getUsers();
+
+    my %notify;
+    foreach my $user (@users) {
+        $notify{$user}{"web"} = join(
+            ",",
+            &Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
+                $user, 4
+            )
+        );
+        $notify{$user}{"topic"} = join(
+            ",",
+            &Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
+                $user, 3
+            )
+        );
+        $notify{$user}{"regex"} = join(
+            ",",
+            &Foswiki::Plugins::NotificationPlugin::getNotificationsOfUser(
+                $user, 5
+            )
+        );
+    }
+
+    #print STDERR Data::Dumper::Dumper( \%notify );
+
+    my @allChanges;
+    my %lastmodify;
+
+    # Build a list of unique topics that have been changed.
+    foreach my $web ( Foswiki::Func::getListOfWebs('user') ) {
+
+        $lastmodify{$web} = 0;
+        my $currmodify = 0;
+        my %exclude;
+
+        my $it = Foswiki::Func::eachChangeSince( $web, $lastmodify{$web} + 1 );
+        while ( $it->hasNext() ) {
+            my $change = $it->next();
+            next if $change->{minor};
+            next if $change->{more} && $change->{more} =~ m/minor/;
+
+            next unless Foswiki::Func::topicExists( $web, $change->{topic} );
+
+            next if ( $exclude{"$web.$change->{topic}"} );
+
+            $currmodify = $change->{time} if ( $change->{time} > $currmodify );
+            $exclude{"$web.$change->{topic}"} = 1;
+            $change->{web} = $web;
+            push @allChanges, $change;
+        }
+
+        # save date of the last modification
+        #&Foswiki::Store::saveFile( "$dataDir/$web/.mailnotify", $currmodify );
+    }
+
+    #print STDERR Data::Dumper::Dumper( \@allChanges );
+    my $skin = Foswiki::Func::getPreferencesValue("SKIN");
+    my $htmlTmpl = Foswiki::Func::readTemplate( "htmlchanges", $skin );
+
+    my ( $htmlBefore, $htmlWebTmpl, $htmlTopicTmpl, $htmlAfter ) =
+      split( /%REPEAT%/, $htmlTmpl );
+
+    #print STDERR "BEFORE = $htmlBefore\n";
+    #print STDERR "HTML = $htmlTmpl\n";
+    #print STDERR "AFTER = $htmlAfter\n";
+
+    my $htmlEmailTmpl = Foswiki::Func::renderText($htmlBefore);
+    $htmlAfter = Foswiki::Func::renderText($htmlAfter);
+
+    my $from = &Foswiki::Func::getPreferencesValue("WIKIWEBMASTER");
+
+    foreach my $user (@users) {
+        my $htmlEmailBody = $htmlEmailTmpl;
+        $htmlEmailBody =~ s/%WIKIUSER%/$user/g;
+        my $topiclist     = "";
+        my $htmltopiclist = "";
+        my $htmlregexlist = "";
+        my $newText;
+        my %handled;
+        my $count = 0;
+
+        foreach my $change (@allChanges) {
+            my $web        = $change->{web};
+            my $topicName  = $change->{topic};
+            my $userName   = $change->{cuid};
+            my $changeTime = $change->{time};
+            my $revision   = $change->{revision};
+
+            my $wikiuser = &Foswiki::Func::userToWikiName( $userName, 1 );
+
+            #print STDERR "Checking VIEW for $web.$topicName by $user\n";
+            next
+              unless (
+                Foswiki::Func::checkAccessPermission(
+                    'VIEW', $user, undef, $topicName, $web
+                )
+              );
+
+            foreach my $tweb ( split( /,/, $notify{$user}{"web"} ) ) {
+
+                #print STDERR " NOTIFY WEB !$web!, !$tweb!\n";
+                if ( $web eq $tweb ) {
+
+                    #print "HOP\n";
+                    if ( !$handled{$tweb} ) {
+                        $newText = $htmlWebTmpl;
+                        $newText =~ s/%WEBNAME%/$web/g;
+                        $newText = Foswiki::Func::renderText($newText);
+                        $htmlEmailBody .= $newText;
+                        $handled{$tweb} = 1;
+                    }
+
+    # new HTML text for web
+    #print "WEB = $web, TOP = $topicName, USER = $userName, WIKI = $wikiuser\n";
+                    $newText = $htmlTopicTmpl;
+                    $newText =~ s/%TOPICNAME%/$topicName/g;
+                    $newText =~ s/%WEBNAME%/$web/g;
+                    $newText =~ s/%AUTHOR%/$wikiuser/g;
+                    $newText =~ s/%LOCKED%//g;
+                    my $time = Foswiki::Time::formatTime($changeTime);
+                    $newText =~ s/%TIME%/$time/g;
+                    $newText =~ s/%REVISION%/1\.$revision/g;
+                    $newText = Foswiki::Func::renderText($newText);
+
+                    my $head =
+                      Foswiki::Func::summariseChanges( $web, $topicName );
+
+                    $newText =~ s/%TEXTHEAD%/$head/g;
+                    $htmlEmailBody .= $newText;
+
+                    # new plain text for web
+                    $count++;
+                }
+            }
+            foreach my $ttopic ( split( /,/, $notify{$user}{"topic"} ) ) {
+                ( my $tweb, $ttopic ) =
+                  Foswiki::Func::normalizeWebTopicName( '', $ttopic );
+                if ( "$web.$topicName" eq "$tweb.$ttopic" ) {
+
+                    #print STDERR "NOTIFY TOPIC !$tweb!, !$ttopic!\n";
+                    $newText = $htmlTopicTmpl;
+                    $newText =~ s/%TOPICNAME%/$topicName/g;
+                    $newText =~ s/%WEBNAME%/$web/g;
+                    $newText =~ s/%AUTHOR%/$wikiuser/g;
+                    $newText =~ s/%LOCKED%//g;
+                    my $time = Foswiki::Time::formatTime($changeTime);
+                    $newText =~ s/%TIME%/$time/g;
+                    $newText =~ s/%REVISION%/1\.$revision/g;
+                    $newText = Foswiki::Func::renderText($newText);
+                    my $head =
+                      Foswiki::Func::summariseChanges( $web, $topicName );
+
+                    #print STDERR "CHANGES: $head\n";
+                    $newText =~ s/%TEXTHEAD%/$head/g;
+                    $htmltopiclist .= $newText;
+
+#print STDERR "===============================\n$newText\n=====================\n";
+                    $count++;
+                }
+            }
+            foreach my $tregex ( split( /,/, $notify{$user}{"regex"} ) ) {
+
+                #print STDERR "NOTIFY REGEX !$web!, !$tregex!\n";
+                if ( "$web.$topicName" =~ /$tregex/ ) {
+                    $newText = $htmlTopicTmpl;
+                    $newText =~ s/%TOPICNAME%/$topicName/g;
+                    $newText =~ s/%WEBNAME%/$web/g;
+                    $newText =~ s/%AUTHOR%/$wikiuser/g;
+                    $newText =~ s/%LOCKED%//g;
+                    my $time = Foswiki::Time::formatTime($changeTime);
+                    $newText =~ s/%TIME%/$time/g;
+                    $newText =~ s/%REVISION%/1\.$revision/g;
+                    $newText = Foswiki::Func::renderText($newText);
+                    my $head =
+                      Foswiki::Func::summariseChanges( $web, $topicName );
+                    $newText =~ s/%TEXTHEAD%/$head/g;
+                    $htmlregexlist .= $newText;
+                    $count++;
+                }
+            }
+        }
+
+        #print "COUNT = $count\n";
+        if ( $count > 0 ) {
+            $htmlEmailBody .= $htmlAfter;
+            $htmlEmailBody =~ s/%TOPICLIST%/$htmltopiclist/goi;
+            $htmlEmailBody =~ s/%REGEXLIST%/$htmlregexlist/goi;
+
+#print "HTML EMAIL BODY = \n==================================\n$htmlEmailBody\n===============================\n";
+
+            Foswiki::Func::readTemplate( "mailnotify", $skin );
+
+            my $email =
+              Foswiki::Func::expandCommonVariables(
+                Foswiki::Func::expandTemplate('MailNotifyBody'),
+                $Foswiki::cfg{HomeTopicName}, $web );
+
+            #print STDERR "MAILNOTIFYBODY: ($email)\n";
+
+            if ( $Foswiki::cfg{MailerContrib}{RemoveImgInMailnotify} ) {
+
+                # change images to [alt] text if there, else remove image
+                $email =~ s/<img\s[^>]*\balt=\"([^\"]+)[^>]*>/[$1]/gi;
+                $email =~ s/<img\s[^>]*\bsrc=.*?[^>]>//gi;
+            }
+
+            $email =~ s/%EMAILFROM%/$from/go;
+            my $mail =
+              &Foswiki::Plugins::NotificationPlugin::getUserEmail($user);
+
+            #print "USER = $user, EMAIL = $mail";
+            $email =~ s/%EMAILTO%/$mail/go;
+            $email =~ s/%HTML_TEXT%/$htmlEmailBody/go;
+            $email = Foswiki::Func::expandCommonVariables( $email, $topic );
+
+            #print STDERR "MAILNOTIFYBODY-Tailored: ($email)\n";
+
+            # change absolute addresses to relative ones & do some cleanup
+            $email =~ s/(href=\")$scriptUrlPath/$1..\/../goi;
+            $email =~ s/(action=\")$scriptUrlPath/$1..\/../goi;
+            $email =~ s|( ?) *</*nop/*>\n?|$1|gois;
+
+            $debug && print "- Sending mail notification to $user\n";
+            &Foswiki::Func::writeDebug("MAIL SENT TO $user ...");
+
+            #print STDERR "=============\n($email)\n===========\n";
+            #
+            #$email = Foswiki::encode_utf8( $email );
+
+            my $error = &Foswiki::Func::sendEmail($email);
+            if ($error) {
+                &Foswiki::Func::writeDebug("ERROR IN SENDING MAIL - $error");
+                print STDERR "* $error\n";
+            }
+        }
+    }
+
+    &Foswiki::Func::writeDebug("FINISH REGULAR NOTIFICATIONS");
+    &Foswiki::Func::writeDebug("============================");
+    $debug && print "End Foswiki mail notification\n";
+
 }
 
 1;

@@ -16,6 +16,4 @@ templates/mailnotify-single-html.tmpl 0644
 templates/mailnotify-single-text.tmpl 0644
 templates/mailnotify-srg-html.tmpl 0644
 templates/mailnotify-srg-text.tmpl 0644
-templates/view.NP.tmpl 0644
-tools/changenotify 0755
-tools/mailnotify-NP 0755
+templates/view.notify.tmpl 0644

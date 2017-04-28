@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="JoeUser" comment="pending" date="1492043321" format="1.1" version="2"}%
+%META:TOPICINFO{author="ProjectContributor" date="1493338831" format="1.1" version="1"}%
 ---+!! <nop>%TOPIC%
 <!--
    * Set SHORTDESCRIPTION = %$SHORTDESCRIPTION%
@@ -14,58 +14,53 @@ Allows you to specify to kinds of notifications - immediate and regular. Immedia
 
 You have to create topic *%Your_user_name%NotifyList* in *Main* web from template Main.NotificationPluginListTemplate. Fill it with desired topics, webs and regexps and enjoy...
 
-%ICON{edittopic}% <a href="%SCRIPTURLPATH%/edit%SCRIPTSUFFIX%/%WIKIUSERNAME%NotifyList?templatetopic=Main.NotificationPluginListTemplate"><strong>Create <nop>%WIKIUSERNAME%NotifyList now!</strong></a>.
+%IF{"istopic '%USERSWEB%.%WIKINAME%NotifyList'"
+   then="%ICON{edittopic}% <a href='%SCRIPTURLPATH{"edit"}%/%WIKIUSERNAME%NotifyList'><strong>Edit existing <nop>%WIKIUSERNAME%NotifyList now!</strong></a>"
+   else="%ICON{edittopic}% <a href='%SCRIPTURLPATH{"edit"}%/%WIKIUSERNAME%NotifyList?templatetopic=%USERSWEB%.NotificationPluginListTemplate'><strong>Create <nop>%WIKIUSERNAME%NotifyList now!</strong></a>"
+}%
+
+<div class="foswikiHelp">%T% The headings in the topic are important. If the headings are missing, the
+notifications will not be performed.</div>
 
 ---+++ NTF variable
 For adding _fast switching_ to notifications you can use =%<nop>NTF{}%= variable:
 
-You should add this variable to =view.tmpl= (you can use view.tmpl bundled in <nop>NotificationPlugin.zip). The buttons are !JavaScript-ed so you need to have !JavaScript enabled in your browser.
+There are two modes of use:
+   * As "immediate action" buttons.   Click a button and the state toggles.
+   * Use to open a pop-up dialog with checkboxes for the types of notification.
 
 You can use these attributes in =%<nop>NTF{}%= variable:
-	* =popup= - if displays button which opens new window with support of changing notifications
-	* =tin= - it displays button for changing 'Topic immediate notifications'
-	* =win= - it displays button for changing 'Web immediate notifications'
-	* =tn= - it displays button for changing 'Topic notifications'
-	* =wn= - it displays button for changing 'Web notifications'
+	* =popup= - it displays button which opens new window with support of changing notifications. Default is off.
+
+When "popup" is disabled (the default), then the following 4 buttons are
+enabled by default:
+	* =tin= - displays button for changing 'Topic immediate notifications'
+	* =win= - displays button for changing 'Web immediate notifications'
+	* =tn= - displays button for changing 'Topic notifications'
+	* =wn= - displays button for changing 'Web notifications'
 
 Default values for all these attributes are "on". You can set it "off" to hide buttons.
 
 ---++++ NTF examples
-	* =%<nop>NTF{}%= - displays all four buttons
-	* =%<nop>NTF{win="off" wn="off"}%= - displays only buttons for topic immediate notification and regular topic notification
-
----++++ NTF Popup
-%STARTSECTION{"notification"}%
-<div id='changenotify' title="%MAKETEXT{"Change Notification"}%" class="jqUIDialog { modal:true, resizable:false, draggable:false, width:400, autoCenter:true, cache:false}">
-<form  method="post" action="%SCRIPTURLPATH{"rest"}%/NotificationPlugin/changenotify">
-    <input type="hidden" name="popup" value="1" />
-    <input type="hidden" name="topic" value="%URLPARAM{"notifyweb"}%.%URLPARAM{"notifytopic"}%" />
----++ <nop>%URLPARAM{"notifyweb"}%.%URLPARAM{"notifytopic"}%
----+++ Immediate Notifications
-    <input type="checkbox" name="TIN" value="ON" %URLPARAM{"TIN"}% >changes to the Topic<br/>
-    <input type="checkbox" name="WIN" value="ON" %URLPARAM{"WIN"}% >changes to the Web<br/>
----+++ Normal Notifications
-    <input type="checkbox" name="TN" value="ON" %URLPARAM{"TN"}% >changes to the Topic<br/>
-    <input type="checkbox" name="WN" value="ON" %URLPARAM{"WN"}% >changes to the web<br/>
-    <input type="hidden" value="Update" name="action"></form>
-   <a class="jqUIDialogButton jqUIDialogSubmit jqUIDialogClose {icon:'ui-icon-circle-check'}" >%MAKETEXT{"Change"}%</a>
-   <a id='cancelLink' class="jqUIDialogButton jqUIDialogClose {icon:'ui-icon-cancel'}">%MAKETEXT{"Cancel"}%</a>
-</div>
-
-
-%ENDSECTION{"notification"}%
+   *  =%<nop>NTF{}%= - displays all four buttons
+      * %NTF%
+   * =%<nop>NTF{win="off" wn="off"}%= - displays only buttons for topic immediate notification and regular topic notification
+      * %NTF{win="off" wn="off"}%
+   * =%<nop>NTF{popup="on"}%= - Displays a button to open the Update Notifications dialog.
+      *  %NTF{popup="on"}%
 
 ---++ Description of <nop>NotifyList topics
 
 There are two types of notifications - immediate and regular.
 
----+++ Type of notifications
+---+++ Immediate notifications
+This type of notifications is send immediatly after user change watched topic. This type of notification is send even if the user checks the (deprecated) 'Don't notify' checkbox.
+This means that you can see ANY change which is made in selected topics or webs. But, on the other hand, this is also the best way to be spammed with many mails if you set immediate
+notification on whole webs if topics in this web are often changed. You have to decide when to use this type of notification.
 
----++++ Immediate notifications
-This type of notifications is send immediatly after user change watched topic. This type of notification is send also in the case user use 'Don't notify' checkbox. This means that you can see ANY change which is made in selected topics or webs. But, on the other hand, this is also the best way to be spammed with many mails if you set immediate notification on whole webs if topics in this web are often changed. You have to decide when to use this type of notification.
-
----++++ Regular notifications
-This type of notifications is the default Foswiki notification system. The problem with this type of notifications is when somebody use "Don't notify" option because notification is not send (what is logical :-)). But sometimes you want to know about every change in your topic and then the immediate notifications come into play...
+---+++ Regular notifications (not currently functional)
+This type of notifications is similar to the default Foswiki notification system, but it also ignores the "Don't notify" checkbox.  This notificaiton type requires a cron-job to 
+run the mailnotify rest handler.
 
 ---+++ Subtypes
 The syntax of setting a notification is with bullet Foswiki list.
@@ -82,34 +77,57 @@ If you want to set immediate notifications on all topics in web Test and topics 
 
 	* Add child notifications (setting an topic and get notifications of all its children)
 
+---++ NTF Popup
+This block is displayed into a JQDialog pop-up when the NOtifications button
+generated by the =%<nop>NTF{popup="on"}%= macro is pressed.
+<verbatim class="tml">
+%STARTSECTION{"notification"}%
+<div id='changenotify' title="%MAKETEXT{"Change Notification"}%" class="jqUIDialog { modal:true, resizable:false, draggable:false, width:400, autoCenter:true, cache:false}">
+<form  method="post" action="%SCRIPTURLPATH{"rest"}%/NotificationPlugin/changenotify">
+    <input type="hidden" name="popup" value="1" />
+    <input type="hidden" name="topic" value="%URLPARAM{"notifyweb"}%.%URLPARAM{"notifytopic"}%" />
+---++ <nop>%URLPARAM{"notifyweb"}%.%URLPARAM{"notifytopic"}%
+---+++ Immediate Notifications
+    <input type="checkbox" name="TIN" value="ON" %URLPARAM{"TIN"}% >changes to the Topic<br/>
+    <input type="checkbox" name="WIN" value="ON" %URLPARAM{"WIN"}% >changes to the Web<br/>
+---+++ Normal Notifications
+    <input type="checkbox" name="TN" value="ON" %URLPARAM{"TN"}% >changes to the Topic<br/>
+    <input type="checkbox" name="WN" value="ON" %URLPARAM{"WN"}% >changes to the web<br/>
+    <input type="hidden" value="Update" name="action"></form>
+   <a class="jqUIDialogButton jqUIDialogSubmit jqUIDialogClose {icon:'ui-icon-circle-check'}" >%MAKETEXT{"Change"}%</a>
+   <a id='cancelLink' class="jqUIDialogButton jqUIDialogClose {icon:'ui-icon-cancel'}">%MAKETEXT{"Cancel"}%</a>
+</div>
+%ENDSECTION{"notification"}%
+</verbatim>
+
 ---++ Plugin Installation Instructions
 %$INSTALL_INSTRUCTIONS%
 Some unusual files are installed that are worthy of mention:
 | ==templates/htmlchanges.tmpl== | Template for generating HTML mails with notifications |
-| ==templates/view.NP.tmpl== | Template with example of using NTF variable |
-| ==tools/mailnotify-NP== | Perl script for sending regular notifications (could be put in cron)<br>You can rename it if you need old notifications |
-| ==tools/changenotify== | Perl script for changing notifications using NTF variable |
+| ==templates/view.notify.tmpl== | Template overrides the SubscribePlugin's "subscribe" link with a link to "Update Notifications" dialog. |
 
 ---++ Info
-Sponsored by [[http://www.systinet.com][Systinet]] ;-)
+Original version sponsored by [[http://www.systinet.com][Systinet]] ;-)
 
-|  Author: | Foswiki:Main/RichardBaar |
+|  Author: | Foswiki:Main.RichardBaar Foswiki:Main.ProjectContributors |
 |  Version: | %$VERSION% |
 |  Release: | %$RELEASE% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
-|  12 Sep 2010 (1.16) | Tasks:Item8428 - Lose SENDER |
-|  21 May 2007: | Bugs:Item3969 - 8bit email fix (Foswiki:Main.WillNorris) |
-|  11 May 2004: | Version 1.14 - popup support for changing notifications |
-|  29 Apr 2004: | Version 1.13 - mailnotify script bugfix |
-|  28 Apr 2004: | Version 1.12 - bugfix |
-|  28 Apr 2004: | Version 1.11 - bugfixes |
-|  25 Feb 2004: | Version 1.05 - bugfix |
-|  24 Feb 2004: | Version 1.04 - bug-fix of immediate notifications |
-|  24 Feb 2004: | Version 1.03 - added SENDER variable, bug-fixes |
-|  26 Apr 2004: | Version 1.1 - new functions; added support for fast setting notifications |
-|  14 Jan 2004: | Initial version |
-|  Home: | http://foswiki.org/Extensions/%TOPIC% |
-|  Feedback: | http://foswiki.org/Extensions/%TOPIC%Dev |
-
--- Foswiki:Main/RichardBaar - 26 Apr 2004
+|  27 Apr 2017 (2.00) | Foswikitask:Item11572: Syntax errors in the code.  <br/>\
+                        Foswikitask:Item14327: Errors generated when saving a new userNotifyList. <br/>\
+                        Foswikitask:Item14325: Unescaped braces fail in latest perl. <br/>\
+                        Foswikitask:Item14326: Non-existing global variables are referenced. <br/>\
+                        Foswikitask:Item11574: Notification buttons and popup are not working. <br/>\
+                        Foswikitask:Item14378: mailnotify-NP script is not functional. |
+|  12 Sep 2010 (1.16) | Foswikitask:Item8428:  Lose SENDER |
+|  21 May 2007 (1.15) | TWikibug:Item3969: 8bit email fix (Foswiki:Main.WillNorris) |
+|  11 May 2004 (1.14) | Version 1.14 - popup support for changing notifications |
+|  29 Apr 2004 (1.13) | Version 1.13 - mailnotify script bugfix |
+|  28 Apr 2004 (1.12) | Version 1.12 - bugfix |
+|  28 Apr 2004 (1.11) | Version 1.11 - bugfixes |
+|  25 Feb 2004 (1.05) | Version 1.05 - bugfix |
+|  24 Feb 2004 (1.04) | Version 1.04 - bug-fix of immediate notifications |
+|  24 Feb 2004 (1.03) | Version 1.03 - added SENDER variable, bug-fixes |
+|  26 Apr 2004 (1.01) | Version 1.1 - new functions; added support for fast setting notifications |
+|  14 Jan 2004 | Initial version |
 

@@ -1,0 +1,7 @@
+%{ This is a default template }%
+%TMPL:INCLUDE{"view"}%%{
+}%
+%{To remove the MailerContrib Subscribe/unsubscribe button, remove
+  the %TMPL:PREV% from the next line. }%
+%TMPL:DEF{"subscribe_link"}%%TMPL:PREV%%NTF{popup="on"}%%TMPL:END%%{
+}%
