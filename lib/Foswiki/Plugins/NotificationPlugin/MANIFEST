@@ -1,5 +1,6 @@
 data/Main/NotificationPluginListTemplate.txt 0644
 data/System/NotificationPlugin.txt 0644
+data/System/VarNTF.txt 0644
 lib/Foswiki/Plugins/NotificationPlugin.pm 0644
 lib/Foswiki/Plugins/NotificationPlugin/Config.spec 0755
 lib/Foswiki/Plugins/NotificationPlugin/DEPENDENCIES 0644

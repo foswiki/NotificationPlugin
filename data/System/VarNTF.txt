@@ -1,0 +1,21 @@
+%META:TOPICINFO{author="ProjectContributor" date="1434650530" format="1.1" version="1"}%
+%META:TOPICPARENT{name="Macros"}%
+---+ NTF -- Display the buttons for updating NotificationPlugin notification rules.
+%STARTSECTION{"ntf_attributes"}%
+---++ Parameters
+   * The following attributes are recognized:
+     %TABLE{sort="off"}%
+     | *Name* | *Description* | *Default* |
+     | =popup= | Renders a "Notifications" button, which invokes a popup menu for setting notificaions. | =off= |
+     | The following settings all default to =off= if =popup= is enabled ||
+     | =tin= | Renders a TIN button to toggle the Immediate Notify status of the topic. | %IF{"context NotificationPluginImmediate" then="=on=" else="__Disabled__"}% |
+     | =win= | Renders a WIN button to toggle the Immediate Notify status for the entire web. | %IF{"context NotificationPluginImmediate" then="=on=" else="__Disabled__"}% |
+     | =tn= | Renders a TN button to toggle the Normal Notify status of the topic. | %IF{"context NotificationPluginNormal" then="=on=" else="__Disabled__"}% |
+     | =wn= | Renders a WN button to toggle the Normal Notify status for the entire web. | %IF{"context NotificationPluginNormal" then="=on=" else="__Disabled__"}% |
+
+%ENDSECTION{"ntf_attributes"}%
+---++ Examples
+   * A =%<nop>NTF{tin="off"}%= display all buttons except for the Topic Immediate Notification (TIN) button.
+%STOPINCLUDE%
+---++ Related
+NotificationPlugin, MailerContrib

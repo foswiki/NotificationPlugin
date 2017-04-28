@@ -7,8 +7,8 @@ use strict;
 use Foswiki::Func;
 use Foswiki::Time;
 
-our $VERSION = '1.30';
-our $RELEASE = '24 Feb 2017';
+our $VERSION = '2.00';
+our $RELEASE = '27 Apr 2017';
 our $SHORTDESCRIPTION =
   'Send fine grained notifications of topics you are interested in';
 our $NO_PREFS_IN_TOPIC = 1;
@@ -45,13 +45,23 @@ sub initPlugin {
         description => 'Modify NotificationPlugin subscriptions'
     );
 
-    Foswiki::Func::registerRESTHandler(
-        'mailnotify', \&mailnotify_Handler,
-        authenticate => 1,  # Set to 0 if handler should be useable by WikiGuest
-        validate     => 1,  # Set to 0 to disable StrikeOne CSRF protection
-        http_allow => 'POST', # Set to 'GET,POST' to allow use HTTP GET and POST
-        description => 'NotificationPlugin mail notificaions'
-    );
+    if ( $Foswiki::cfg{Extensions}{NotificationPlugin}{EnableNormalNotify} ) {
+        Foswiki::Func::getContext()->{NotificationPluginNormal} = 1;
+        Foswiki::Func::registerRESTHandler(
+            'mailnotify', \&mailnotify_Handler,
+            authenticate =>
+              1,    # Set to 0 if handler should be useable by WikiGuest
+            validate => 1,    # Set to 0 to disable StrikeOne CSRF protection
+            http_allow =>
+              'POST',         # Set to 'GET,POST' to allow use HTTP GET and POST
+            description => 'NotificationPlugin mail notificaions'
+        );
+    }
+
+    if ( $Foswiki::cfg{Extensions}{NotificationPlugin}{EnableImmediateNotify} )
+    {
+        Foswiki::Func::getContext()->{NotificationPluginImmediate} = 1;
+    }
 
     Foswiki::Func::registerTagHandler( 'NTF', \&_NTF );
 
@@ -70,6 +80,10 @@ sub _NTF {
 # =========================
 sub beforeSaveHandler {
     ### my ( $text, $topic, $web ) = @_;
+
+    return
+      unless $Foswiki::cfg{Extensions}{NotificationPlugin}
+      {EnableImmediateNotify};
 
     Foswiki::Func::writeDebug(
         "- NotificatinoPlugin::beforeSaveHandler( $_[2].$_[1] )")
@@ -400,12 +414,13 @@ sub showNotifyButtons {
     my ( $tin, $win, $tn, $wn, $popup ) = ( "on", "on", "on", "on", "off" );
     my ( $tinOn, $winOn, $tnOn, $wnOn ) = ( "on", "on", "on", "on" );
     my %tmp = ( "on" => "OFF", "off" => "ON" );
-    $popup = $params->{popup} || "off";
-    my $def = ( $popup eq 'on' ) ? 'off' : 'on';
-    $tin = $params->{tin} || $def;
-    $win = $params->{win} || $def;
-    $tn  = $params->{tn}  || $def;
-    $wn  = $params->{wn}  || $def;
+    $popup = Foswiki::Func::isTrue( $params->{popup} );
+    my $def = !$popup;
+
+    $tin = Foswiki::Func::isTrue( $params->{tin}, $def );
+    $win = Foswiki::Func::isTrue( $params->{win}, $def );
+    $tn  = Foswiki::Func::isTrue( $params->{tn},  $def );
+    $wn  = Foswiki::Func::isTrue( $params->{wn},  $def );
 
     my $text = "";
 
@@ -423,7 +438,7 @@ sub showNotifyButtons {
           if ( !isItemInSection( $curWikiName, "$web.$topic", 3 ) );
         $wnOn = "off" if ( !isItemInSection( $curWikiName, "$web", 4 ) );
 
-        if ( $popup eq 'on' ) {
+        if ($popup) {
             my $tinC = ( $tinOn eq 'on' ) ? 'checked' : '';
             my $winC = ( $winOn eq 'on' ) ? 'checked' : '';
             my $tnC  = ( $tnOn  eq 'on' ) ? 'checked' : '';
@@ -434,40 +449,48 @@ sub showNotifyButtons {
 HERE
         }
 
-        $text .= <<"HERE" if $tin eq 'on';
+        if (
+            $Foswiki::cfg{Extensions}{NotificationPlugin}{EnableImmediateNotify}
+          )
+        {
+            $text .= <<"HERE" if $tin;
             <form id="TIN" action="$restURL" method="post">
                 <input type="hidden" name="what" value="TIN" />
                 <input type="hidden" name="topic" value="$web.$topic" />
                 <input type="hidden" name="action" value="$tmp{$tinOn}" />
-                <input type="submit" class="foswikiButton" value="TIN $tinOn" title="Topic immediate notifications! Click to set it $tmp{$tinOn}!" />
+                <input type="submit" value="TIN $tinOn" title="Topic immediate notifications! Click to set it $tmp{$tinOn}!" />
             </form>
 HERE
-        $text .= <<"HERE" if $win eq 'on';
+            $text .= <<"HERE" if $win;
             <form id="WIN" action="$restURL" method="post">
                 <input type="hidden" name="what" value="WIN" />
                 <input type="hidden" name="topic" value="$web.$topic" />
                 <input type="hidden" name="action" value="$tmp{$winOn}" />
-                <input type="submit" class="foswikiButton" value="WIN $winOn" title="Topic immediate notifications! Click to set it $tmp{$winOn}!" />
+                <input type="submit" value="WIN $winOn" title="Topic immediate notifications! Click to set it $tmp{$winOn}!" />
             </form>
 HERE
+        }
 
-        $text .= <<"HERE" if $tn eq 'on';
+        if ( $Foswiki::cfg{Extensions}{NotificationPlugin}{EnableNormalNotify} )
+        {
+            $text .= <<"HERE" if $tn;
             <form id="TN" action="$restURL" method="post">
                 <input type="hidden" name="what" value="TN" />
                 <input type="hidden" name="topic" value="$web.$topic" />
                 <input type="hidden" name="action" value="$tmp{$tnOn}" />
-                <input type="submit" class="foswikiButton" value="TN $tnOn" title="Topic immediate notifications! Click to set it $tmp{$tnOn}!" />
+                <input type="submit" value="TN $tnOn" title="Topic immediate notifications! Click to set it $tmp{$tnOn}!" />
             </form>
 HERE
 
-        $text .= <<"HERE" if $wn eq 'on';
+            $text .= <<"HERE" if $wn;
             <form id="WN" action="$restURL" method="post">
                 <input type="hidden" name="what" value="WN" />
                 <input type="hidden" name="topic" value="$web.$topic" />
                 <input type="hidden" name="action" value="$tmp{$wnOn}" />
-                <input type="submit" class="foswikiButton" value="WN $wnOn" title="Topic immediate notifications! Click to set it $tmp{$wnOn}!" />
+                <input type="submit" value="WN $wnOn" title="Topic immediate notifications! Click to set it $tmp{$wnOn}!" />
             </form>
 HERE
+        }
 
     }
     return $text;
@@ -807,3 +830,27 @@ sub mailnotify_Handler {
 }
 
 1;
+__END__
+Foswiki - The Free and Open Source Wiki, http://foswiki.org/
+
+Copyright (C) 2008-2017 Foswiki Contributors. Foswiki Contributors
+are listed in the AUTHORS file in the root of this distribution.
+NOTE: Please extend that file, not this notice.
+
+Additional copyrights apply to some or all of the code in this
+file as follows:
+Copyright (C) 2001-2006 TWiki Contributors. All Rights Reserved.
+TWiki Contributors are listed in the AUTHORS file in the root
+of this distribution. NOTE: Please extend that file, not this notice.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version. For
+more details read LICENSE in the root of this distribution.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+As per the GPL, removal of this notice is prohibited.
