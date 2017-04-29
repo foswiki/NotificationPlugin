@@ -570,6 +570,21 @@ sub mailnotify_Handler {
 
     my ( $session, $subject, $verb, $response ) = @_;
 
+    if ( !Foswiki::Func::isAnAdmin() ) {
+        $response->header( -status => 403, -type => 'text/plain' );
+        $response->print("Only administrators can do that");
+        return;
+    }
+
+    # Don't use the $response; we want to see things happening
+    local $| = 1;    # autoflush on
+    require CGI;
+    print CGI::header(
+        -status  => 200,
+        -type    => 'text/plain',
+        -charset => $Foswiki::cfg{Site}{CharSet},
+    );
+
     my $web   = $session->{webName};
     my $topic = $session->{topicName};
 
@@ -577,14 +592,20 @@ sub mailnotify_Handler {
     my $wikiName      = Foswiki::Func::getWikiName();
     my $scriptUrlPath = Foswiki::Func::getScriptUrlPath( $web, $topic, 'view' );
 
-    my $quiet = $query->param('q');
+    my $quiet  = $query->param('q');
+    my $dryrun = $query->param('n');
 
-    $debug = '0' if $quiet;
+    my $report = ($quiet) ? 0 : 1;
 
     &Foswiki::Func::writeDebug("START REGULAR NOTIFICATIONS");
     &Foswiki::Func::writeDebug("===========================");
-    $debug && print "Foswiki mail notification\n";
-    $debug && print "- to suppress all normal output: mailnotify -q\n";
+    $report && print "Foswiki mail notification\n";
+    $report
+      && print
+"- to suppress all normal output: ./rest /NotificationPlugin/mailnotify -q=1\n";
+    $report
+      && print
+"- to run without modifying files or sending emails: ./rest /NotificationPlugin/mailnotify -n=1\n";
     my @users = getUsers();
 
     my %notify;
@@ -612,16 +633,33 @@ sub mailnotify_Handler {
     #print STDERR Data::Dumper::Dumper( \%notify );
 
     my @allChanges;
-    my %lastmodify;
 
     # Build a list of unique topics that have been changed.
     foreach my $web ( Foswiki::Func::getListOfWebs('user') ) {
 
-        $lastmodify{$web} = 0;
+        # Find the last notification time
+        my $metadir = Foswiki::Func::getWorkArea('NotificationPlugin');
+        my $notmeta = $web;
+        $notmeta =~ s#/#.#g;
+        $notmeta = "$metadir/$notmeta";
+
+        my $timeOfLastNotify = 0;
+        if ( open( F, '<', $notmeta ) ) {
+            local $/ = undef;
+            $timeOfLastNotify = <F>;
+            close(F);
+        }
+
+        if ($report) {
+            _UTF8print( "\tLast notification for $web was at "
+                  . Foswiki::Time::formatTime( $timeOfLastNotify, 'iso' )
+                  . "\n" );
+        }
+
         my $currmodify = 0;
         my %exclude;
 
-        my $it = Foswiki::Func::eachChangeSince( $web, $lastmodify{$web} + 1 );
+        my $it = Foswiki::Func::eachChangeSince( $web, $timeOfLastNotify + 1 );
         while ( $it->hasNext() ) {
             my $change = $it->next();
             next if $change->{minor};
@@ -638,7 +676,17 @@ sub mailnotify_Handler {
         }
 
         # save date of the last modification
-        #&Foswiki::Store::saveFile( "$dataDir/$web/.mailnotify", $currmodify );
+        if ( $currmodify > 0 ) {
+            if ( !$dryrun && open( F, '>', $notmeta ) ) {
+                print F $currmodify;
+                close(F);
+            }
+            if ($report) {
+                _UTF8print( "\tMost recent modification time for $web: "
+                      . Foswiki::Time::formatTime( $currmodify, 'iso' )
+                      . "\n" );
+            }
+        }
     }
 
     #print STDERR Data::Dumper::Dumper( \@allChanges );
@@ -741,8 +789,6 @@ sub mailnotify_Handler {
                     #print STDERR "CHANGES: $head\n";
                     $newText =~ s/%TEXTHEAD%/$head/g;
                     $htmltopiclist .= $newText;
-
-#print STDERR "===============================\n$newText\n=====================\n";
                     $count++;
                 }
             }
@@ -773,8 +819,6 @@ sub mailnotify_Handler {
             $htmlEmailBody .= $htmlAfter;
             $htmlEmailBody =~ s/%TOPICLIST%/$htmltopiclist/goi;
             $htmlEmailBody =~ s/%REGEXLIST%/$htmlregexlist/goi;
-
-#print "HTML EMAIL BODY = \n==================================\n$htmlEmailBody\n===============================\n";
 
             Foswiki::Func::readTemplate( "mailnotify", $skin );
 
@@ -808,25 +852,37 @@ sub mailnotify_Handler {
             $email =~ s/(action=\")$scriptUrlPath/$1..\/../goi;
             $email =~ s|( ?) *</*nop/*>\n?|$1|gois;
 
-            $debug && print "- Sending mail notification to $user\n";
+            $report && print "- Sending mail notification to $user\n";
             &Foswiki::Func::writeDebug("MAIL SENT TO $user ...");
 
-            #print STDERR "=============\n($email)\n===========\n";
-            #
-            #$email = Foswiki::encode_utf8( $email );
-
-            my $error = &Foswiki::Func::sendEmail($email);
-            if ($error) {
-                &Foswiki::Func::writeDebug("ERROR IN SENDING MAIL - $error");
-                print STDERR "* $error\n";
+            if ($dryrun) {
+                _UTF8print("Sending email to $user: <$mail>");
+            }
+            else {
+                my $error = &Foswiki::Func::sendEmail($email);
+                if ($error) {
+                    &Foswiki::Func::writeDebug(
+                        "ERROR IN SENDING MAIL - $error");
+                    print STDERR "* $error\n";
+                }
             }
         }
     }
 
     &Foswiki::Func::writeDebug("FINISH REGULAR NOTIFICATIONS");
     &Foswiki::Func::writeDebug("============================");
-    $debug && print "End Foswiki mail notification\n";
+    $report && print "End Foswiki mail notification\n";
 
+    return undef;
+}
+
+sub _UTF8print {
+    if ($Foswiki::UNICODE) {
+        print Foswiki::encode_utf8( $_[0] );
+    }
+    else {
+        print $_[0];
+    }
 }
 
 1;
